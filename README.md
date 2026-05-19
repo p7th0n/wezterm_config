@@ -32,7 +32,9 @@ The config detects these shells at startup and conditionally enables features:
 | Windows PowerShell | `powershell.exe` | Fallback default, launch menu, Ctrl+Alt+Q |
 | Command Prompt | `cmd.exe` | Launch menu, Ctrl+Alt+E |
 
-> **Bug note:** Claude (Anthropic) detected a bug where shell detection used `"where"` instead of `"where.exe"` in `wezterm.run_child_process` calls. On Windows, `"where"` (without `.exe` extension) was not found by the process launcher, causing all three `has_*` flags to stay `false`. This silently disabled all shell-specific key bindings (Ctrl+Alt+Q, Ctrl+Alt+E) and the launch menu entries. Fixed by using `"where.exe"` explicitly.
+> **Bug notes:** 
+> - Claude (Anthropic) detected a bug where shell detection used `"where"` instead of `"where.exe"` in `wezterm.run_child_process` calls. On Windows, `"where"` (without `.exe` extension) was not found by the process launcher, causing all three `has_*` flags to stay `false`. This silently disabled all shell-specific key bindings (Ctrl+Alt+Q, Ctrl+Alt+E) and the launch menu entries. Fixed by using `"where.exe"` explicitly.
+> - **SSH Fix:** Claude fixed an issue where WezTerm's 32-bit process would find 32-bit PowerShell via `where.exe`, breaking SSH functionality. Updated shell detection to prioritize 64-bit PowerShell installations at standard paths (`C:\Program Files\PowerShell\7\pwsh.exe`, `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`) with fallback to `where.exe` discovery for portability.
 
 ## Keybindings
 

@@ -30,37 +30,64 @@ if #wsl_domains > 0 then
 	config.default_domain = first_wsl_name
 end
 
-local ok, _ = wezterm.run_child_process({ "where.exe", "pwsh.exe" })
-has_pwsh = ok
+local pwsh_path = nil
+local powershell_path = nil
 
-ok, _ = wezterm.run_child_process({ "where.exe", "powershell.exe" })
-has_powershell = ok
+-- Try 64-bit PowerShell first for better SSH support
+local pwsh_64_path = "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+local powershell_64_path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+
+local ok, _ = wezterm.run_child_process({ pwsh_64_path, "-Version" })
+if ok then
+	pwsh_path = pwsh_64_path
+	has_pwsh = true
+else
+	-- Fallback to where.exe for 32-bit or alternative installations
+	ok, stdout = wezterm.run_child_process({ "where.exe", "pwsh.exe" })
+	if ok and stdout then
+		pwsh_path = stdout:match("([^\r\n]+)")
+		has_pwsh = true
+	end
+end
+
+ok, _ = wezterm.run_child_process({ powershell_64_path, "-Version" })
+if ok then
+	powershell_path = powershell_64_path
+	has_powershell = true
+else
+	-- Fallback to where.exe
+	ok, stdout = wezterm.run_child_process({ "where.exe", "powershell.exe" })
+	if ok and stdout then
+		powershell_path = stdout:match("([^\r\n]+)")
+		has_powershell = true
+	end
+end
 
 ok, _ = wezterm.run_child_process({ "where.exe", "cmd.exe" })
 has_cmd = ok
 
-if has_pwsh then
-	config.default_prog = { "pwsh.exe", "-NoLogo" }
-elseif has_powershell then
-	config.default_prog = { "powershell.exe", "-NoLogo" }
+if has_pwsh and pwsh_path then
+	config.default_prog = { pwsh_path, "-NoLogo" }
+elseif has_powershell and powershell_path then
+	config.default_prog = { powershell_path, "-NoLogo" }
 end
 
 -- === Launch Menu ===
 local launch_menu = {}
 
-if has_pwsh then
+if has_pwsh and pwsh_path then
 	table.insert(launch_menu, {
 		label = "PowerShell (pwsh)",
 		domain = { DomainName = "local" },
-		args = { "pwsh.exe", "-NoLogo" },
+		args = { pwsh_path, "-NoLogo" },
 	})
 end
 
-if has_powershell then
+if has_powershell and powershell_path then
 	table.insert(launch_menu, {
 		label = "PowerShell (Windows)",
 		domain = { DomainName = "local" },
-		args = { "powershell.exe", "-NoLogo" },
+		args = { powershell_path, "-NoLogo" },
 	})
 end
 
@@ -119,22 +146,22 @@ else
 end
 
 -- New PowerShell tab
-if has_pwsh then
+if has_pwsh and pwsh_path then
 	table.insert(keys, {
-		key = "q",
+		key = "p",
 		mods = "CTRL|ALT",
 		action = act.SpawnCommandInNewTab({
 			domain = { DomainName = "local" },
-			args = { "pwsh.exe", "-NoLogo" },
+			args = { pwsh_path, "-NoLogo" },
 		}),
 	})
-elseif has_powershell then
+elseif has_powershell and powershell_path then
 	table.insert(keys, {
 		key = "q",
 		mods = "CTRL|ALT",
 		action = act.SpawnCommandInNewTab({
 			domain = { DomainName = "local" },
-			args = { "powershell.exe", "-NoLogo" },
+			args = { powershell_path, "-NoLogo" },
 		}),
 	})
 end
@@ -169,9 +196,14 @@ table.insert(keys, { key = "w", mods = "CTRL", action = act.CloseCurrentTab({ co
 
 -- Utilities
 table.insert(keys, { key = "v", mods = "CTRL|SHIFT", action = act.ActivateCopyMode })
+table.insert(keys, { key = "v", mods = "CTRL", action = act.PasteFrom("Clipboard") })
+table.insert(keys, { key = "Insert", mods = "SHIFT", action = act.PasteFrom("Clipboard") })
 table.insert(keys, { key = "n", mods = "CTRL|SHIFT", action = act.ToggleFullScreen })
 table.insert(keys, { key = "r", mods = "CTRL|SHIFT", action = act.ReloadConfiguration })
 
 config.keys = keys
+
+-- === ssh
+config.ssh_backend = "Ssh2"
 
 return config
