@@ -130,6 +130,21 @@ table.insert(keys, { key = "DownArrow", mods = "CTRL|ALT", action = act.AdjustPa
 -- New tab (current domain)
 table.insert(keys, { key = "t", mods = "CTRL", action = act.SpawnTab("CurrentPaneDomain") })
 
+-- Activate Tab
+table.insert(keys, { key = "Tab", mods = "CTRL", action = act.ActivateTabRelative(1) })
+table.insert(keys, { key = "Tab", mods = "CTRL|SHIFT", action = act.ActivateTabRelative(-1) })
+
+-- Close tab (Ctrl+W) / Close pane (Ctrl+Shift+W)
+table.insert(keys, { key = "w", mods = "CTRL|SHIFT", action = act.CloseCurrentPane({ confirm = true }) })
+table.insert(keys, { key = "w", mods = "CTRL", action = act.CloseCurrentTab({ confirm = true }) })
+
+-- Utilities
+table.insert(keys, { key = "v", mods = "CTRL|SHIFT", action = act.ActivateCopyMode })
+table.insert(keys, { key = "v", mods = "CTRL", action = act.PasteFrom("Clipboard") })
+table.insert(keys, { key = "Insert", mods = "SHIFT", action = act.PasteFrom("Clipboard") })
+table.insert(keys, { key = "n", mods = "CTRL|SHIFT", action = act.ToggleFullScreen })
+table.insert(keys, { key = "r", mods = "CTRL|SHIFT", action = act.ReloadConfiguration })
+
 -- New WSL tab
 if first_wsl_name then
 	table.insert(keys, {
@@ -186,20 +201,6 @@ for i = 1, 9 do
 		action = act.ActivateTab(i - 1),
 	})
 end
-
-table.insert(keys, { key = "Tab", mods = "CTRL", action = act.ActivateTabRelative(1) })
-table.insert(keys, { key = "Tab", mods = "CTRL|SHIFT", action = act.ActivateTabRelative(-1) })
-
--- Close tab (Ctrl+W) / Close pane (Ctrl+Shift+W)
-table.insert(keys, { key = "w", mods = "CTRL|SHIFT", action = act.CloseCurrentPane({ confirm = true }) })
-table.insert(keys, { key = "w", mods = "CTRL", action = act.CloseCurrentTab({ confirm = true }) })
-
--- Utilities
-table.insert(keys, { key = "v", mods = "CTRL|SHIFT", action = act.ActivateCopyMode })
-table.insert(keys, { key = "v", mods = "CTRL", action = act.PasteFrom("Clipboard") })
-table.insert(keys, { key = "Insert", mods = "SHIFT", action = act.PasteFrom("Clipboard") })
-table.insert(keys, { key = "n", mods = "CTRL|SHIFT", action = act.ToggleFullScreen })
-table.insert(keys, { key = "r", mods = "CTRL|SHIFT", action = act.ReloadConfiguration })
 
 config.keys = keys
 
