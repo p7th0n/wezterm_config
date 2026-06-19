@@ -43,9 +43,9 @@ if ok then
 	has_pwsh = true
 else
 	-- Fallback to where.exe for 32-bit or alternative installations
-	ok, stdout = wezterm.run_child_process({ "where.exe", "pwsh.exe" })
-	if ok and stdout then
-		pwsh_path = stdout:match("([^\r\n]+)")
+	ok, STDOUT = wezterm.run_child_process({ "where.exe", "pwsh.exe" })
+	if ok and STDOUT then
+		pwsh_path = STDOUT:match("([^\r\n]+)")
 		has_pwsh = true
 	end
 end
@@ -56,9 +56,9 @@ if ok then
 	has_powershell = true
 else
 	-- Fallback to where.exe
-	ok, stdout = wezterm.run_child_process({ "where.exe", "powershell.exe" })
-	if ok and stdout then
-		powershell_path = stdout:match("([^\r\n]+)")
+	ok, STDOUT = wezterm.run_child_process({ "where.exe", "powershell.exe" })
+	if ok and STDOUT then
+		powershell_path = STDOUT:match("([^\r\n]+)")
 		has_powershell = true
 	end
 end
@@ -192,6 +192,12 @@ if has_cmd then
 		}),
 	})
 end
+
+table.insert(keys, {
+	key = "l",
+	mods = "ALT|CTRL",
+	action = wezterm.action.ShowLauncher,
+})
 
 -- Tab switching
 for i = 1, 9 do
