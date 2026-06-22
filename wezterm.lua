@@ -211,6 +211,13 @@ end
 config.keys = keys
 
 -- === ssh
-config.ssh_backend = "Ssh2"
+
+-- 1. Stop WezTerm from clobbering your SSH environment
+config.mux_enable_ssh_agent = false
+
+-- 2. Explicitly point to the Windows OpenSSH named pipe
+if wezterm.target_triple == "x86_64-pc-windows-msvc" then
+	config.default_ssh_auth_sock = [[\.\pipe\openssh-ssh-agent]]
+end
 
 return config
