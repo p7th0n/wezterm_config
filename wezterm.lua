@@ -3,9 +3,11 @@ local wezterm = require("wezterm")
 local act = wezterm.action
 local config = wezterm.config_builder()
 
+local keys = {}
+
 -- === Font & Appearance ===
 config.font = wezterm.font("Hack Nerd Font")
-config.font_size = 18.0
+config.font_size = 16.0
 config.color_scheme = "Campbell (Gogh)"
 config.window_background_opacity = 0.95
 config.initial_cols = 120
@@ -13,103 +15,160 @@ config.initial_rows = 28
 config.enable_tab_bar = true
 config.hide_tab_bar_if_only_one_tab = false
 
--- === WSL Domain Detection ===
-local has_pwsh = false
-local has_powershell = false
-local has_cmd = false
+-- Detect platform
+local is_windows = wezterm.target_triple:find("windows") ~= nil
+local is_macos = wezterm.target_triple:find("apple") ~= nil
 
-local wsl_domains = wezterm.default_wsl_domains()
-local first_wsl_name = nil
+if is_windows then
+	-- === Windows ===
+	config.default_prog = { "powershell.exe", "-NoLogo" }
+	-- === WSL Domain Detection ===
+	local has_pwsh = false
+	local has_powershell = false
+	local has_cmd = false
 
-for _, dom in ipairs(wsl_domains) do
-	dom.default_cwd = "~"
-end
+	local wsl_domains = wezterm.default_wsl_domains()
+	local first_wsl_name = nil
 
-if #wsl_domains > 0 then
-	first_wsl_name = wsl_domains[1].name
-	config.default_domain = first_wsl_name
-end
+	for _, dom in ipairs(wsl_domains) do
+		dom.default_cwd = "~"
+	end
 
-local pwsh_path = nil
-local powershell_path = nil
+	if #wsl_domains > 0 then
+		first_wsl_name = wsl_domains[1].name
+		config.default_domain = first_wsl_name
+	end
 
--- Try 64-bit PowerShell first for better SSH support
-local pwsh_64_path = "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
-local powershell_64_path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+	local pwsh_path = nil
+	local powershell_path = nil
 
-local ok, _ = wezterm.run_child_process({ pwsh_64_path, "-Version" })
-if ok then
-	pwsh_path = pwsh_64_path
-	has_pwsh = true
-else
-	-- Fallback to where.exe for 32-bit or alternative installations
-	ok, stdout = wezterm.run_child_process({ "where.exe", "pwsh.exe" })
-	if ok and stdout then
-		pwsh_path = stdout:match("([^\r\n]+)")
+	-- Try 64-bit PowerShell first for better SSH support
+	local pwsh_64_path = "C:\\Program Files\\PowerShell\\7\\pwsh.exe"
+	local powershell_64_path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+
+	local ok, _ = wezterm.run_child_process({ pwsh_64_path, "-Version" })
+	if ok then
+		pwsh_path = pwsh_64_path
 		has_pwsh = true
+	else
+		-- 	-- Fallback to where.exe for 32-bit or alternative installations
+		ok, stdout = wezterm.run_child_process({ "where.exe", "pwsh.exe" })
+		if ok and stdout then
+			pwsh_path = stdout:match("([^\r\n]+)")
+			has_pwsh = true
+		end
 	end
-end
 
-ok, _ = wezterm.run_child_process({ powershell_64_path, "-Version" })
-if ok then
-	powershell_path = powershell_64_path
-	has_powershell = true
-else
-	-- Fallback to where.exe
-	ok, stdout = wezterm.run_child_process({ "where.exe", "powershell.exe" })
-	if ok and stdout then
-		powershell_path = stdout:match("([^\r\n]+)")
+	ok, _ = wezterm.run_child_process({ powershell_64_path, "-Version" })
+	if ok then
+		powershell_path = powershell_64_path
 		has_powershell = true
+	else
+		-- Fallback to where.exe
+		ok, stdout = wezterm.run_child_process({ "where.exe", "powershell.exe" })
+		if ok and stdout then
+			powershell_path = stdout:match("([^\r\n]+)")
+			has_powershell = true
+		end
 	end
+
+	ok, _ = wezterm.run_child_process({ "where.exe", "cmd.exe" })
+	has_cmd = ok
+
+	if has_pwsh and pwsh_path then
+		config.default_prog = { pwsh_path, "-NoLogo" }
+	elseif has_powershell and powershell_path then
+		config.default_prog = { powershell_path, "-NoLogo" }
+	end
+
+	-- === Launch Menu ===
+	local launch_menu = {}
+
+	if has_pwsh and pwsh_path then
+		table.insert(launch_menu, {
+			label = "PowerShell (pwsh)",
+			domain = { DomainName = "local" },
+			args = { pwsh_path, "-NoLogo" },
+		})
+	end
+
+	if has_powershell and powershell_path then
+		table.insert(launch_menu, {
+			label = "PowerShell (Windows)",
+			domain = { DomainName = "local" },
+			args = { powershell_path, "-NoLogo" },
+		})
+	end
+
+	if has_cmd then
+		table.insert(launch_menu, {
+			label = "Command Prompt",
+			domain = { DomainName = "local" },
+			args = { "cmd.exe" },
+		})
+	end
+
+	for _, dom in ipairs(wsl_domains) do
+		table.insert(launch_menu, {
+			label = "WSL: " .. dom.distribution,
+			domain = { DomainName = dom.name },
+		})
+	end
+
+	config.launch_menu = launch_menu
+
+	-- New WSL tab
+	if first_wsl_name then
+		table.insert(keys, {
+			key = "w",
+			mods = "CTRL|ALT",
+			action = act.SpawnTab({ DomainName = first_wsl_name }),
+		})
+	else
+		table.insert(keys, {
+			key = "w",
+			mods = "CTRL|ALT",
+			action = act.SpawnCommandInNewTab({ args = { "wsl.exe" } }),
+		})
+	end
+
+	-- New PowerShell tab
+	if has_pwsh and pwsh_path then
+		table.insert(keys, {
+			key = "p",
+			mods = "CTRL|ALT",
+			action = act.SpawnCommandInNewTab({
+				domain = { DomainName = "local" },
+				args = { pwsh_path, "-NoLogo" },
+			}),
+		})
+	elseif has_powershell and powershell_path then
+		table.insert(keys, {
+			key = "q",
+			mods = "CTRL|ALT",
+			action = act.SpawnCommandInNewTab({
+				domain = { DomainName = "local" },
+				args = { powershell_path, "-NoLogo" },
+			}),
+		})
+	end
+
+	-- New cmd tab
+	if has_cmd then
+		table.insert(keys, {
+			key = "e",
+			mods = "CTRL|ALT",
+			action = act.SpawnCommandInNewTab({
+				domain = { DomainName = "local" },
+				args = { "cmd.exe" },
+			}),
+		})
+	end
+elseif is_macos then
+	config.default_prog = { "/bin/zsh", "-l" }
 end
-
-ok, _ = wezterm.run_child_process({ "where.exe", "cmd.exe" })
-has_cmd = ok
-
-if has_pwsh and pwsh_path then
-	config.default_prog = { pwsh_path, "-NoLogo" }
-elseif has_powershell and powershell_path then
-	config.default_prog = { powershell_path, "-NoLogo" }
-end
-
--- === Launch Menu ===
-local launch_menu = {}
-
-if has_pwsh and pwsh_path then
-	table.insert(launch_menu, {
-		label = "PowerShell (pwsh)",
-		domain = { DomainName = "local" },
-		args = { pwsh_path, "-NoLogo" },
-	})
-end
-
-if has_powershell and powershell_path then
-	table.insert(launch_menu, {
-		label = "PowerShell (Windows)",
-		domain = { DomainName = "local" },
-		args = { powershell_path, "-NoLogo" },
-	})
-end
-
-if has_cmd then
-	table.insert(launch_menu, {
-		label = "Command Prompt",
-		domain = { DomainName = "local" },
-		args = { "cmd.exe" },
-	})
-end
-
-for _, dom in ipairs(wsl_domains) do
-	table.insert(launch_menu, {
-		label = "WSL: " .. dom.distribution,
-		domain = { DomainName = dom.name },
-	})
-end
-
-config.launch_menu = launch_menu
 
 -- === Keybindings ===
-local keys = {}
 
 -- Pane splitting
 table.insert(keys, { key = "d", mods = "CTRL", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) })
@@ -129,54 +188,6 @@ table.insert(keys, { key = "DownArrow", mods = "CTRL|ALT", action = act.AdjustPa
 
 -- New tab (current domain)
 table.insert(keys, { key = "t", mods = "CTRL", action = act.SpawnTab("CurrentPaneDomain") })
-
--- New WSL tab
-if first_wsl_name then
-	table.insert(keys, {
-		key = "w",
-		mods = "CTRL|ALT",
-		action = act.SpawnTab({ DomainName = first_wsl_name }),
-	})
-else
-	table.insert(keys, {
-		key = "w",
-		mods = "CTRL|ALT",
-		action = act.SpawnCommandInNewTab({ args = { "wsl.exe" } }),
-	})
-end
-
--- New PowerShell tab
-if has_pwsh and pwsh_path then
-	table.insert(keys, {
-		key = "p",
-		mods = "CTRL|ALT",
-		action = act.SpawnCommandInNewTab({
-			domain = { DomainName = "local" },
-			args = { pwsh_path, "-NoLogo" },
-		}),
-	})
-elseif has_powershell and powershell_path then
-	table.insert(keys, {
-		key = "q",
-		mods = "CTRL|ALT",
-		action = act.SpawnCommandInNewTab({
-			domain = { DomainName = "local" },
-			args = { powershell_path, "-NoLogo" },
-		}),
-	})
-end
-
--- New cmd tab
-if has_cmd then
-	table.insert(keys, {
-		key = "e",
-		mods = "CTRL|ALT",
-		action = act.SpawnCommandInNewTab({
-			domain = { DomainName = "local" },
-			args = { "cmd.exe" },
-		}),
-	})
-end
 
 -- Tab switching
 for i = 1, 9 do
