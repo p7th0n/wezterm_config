@@ -7,7 +7,7 @@ local keys = {}
 
 -- === Font & Appearance ===
 config.font = wezterm.font("Hack Nerd Font")
-config.font_size = 16.0
+config.font_size = 18.0
 config.color_scheme = "Campbell (Gogh)"
 config.window_background_opacity = 0.95
 config.initial_cols = 120
@@ -51,7 +51,7 @@ if is_windows then
 		pwsh_path = pwsh_64_path
 		has_pwsh = true
 	else
-		-- 	-- Fallback to where.exe for 32-bit or alternative installations
+		-- Fallback to where.exe for 32-bit or alternative installations
 		ok, stdout = wezterm.run_child_process({ "where.exe", "pwsh.exe" })
 		if ok and stdout then
 			pwsh_path = stdout:match("([^\r\n]+)")
@@ -164,6 +164,11 @@ if is_windows then
 			}),
 		})
 	end
+
+	-- Stop WezTerm from clobbering the SSH environment; point to the Windows OpenSSH named pipe
+	config.mux_enable_ssh_agent = false
+	config.default_ssh_auth_sock = [[\.\pipe\openssh-ssh-agent]]
+
 elseif is_macos then
 	config.default_prog = { "/bin/zsh", "-l" }
 end
@@ -189,6 +194,13 @@ table.insert(keys, { key = "DownArrow", mods = "CTRL|ALT", action = act.AdjustPa
 -- New tab (current domain)
 table.insert(keys, { key = "t", mods = "CTRL", action = act.SpawnTab("CurrentPaneDomain") })
 
+-- Launch menu
+table.insert(keys, {
+	key = "l",
+	mods = "ALT|CTRL",
+	action = wezterm.action.ShowLauncher,
+})
+
 -- Tab switching
 for i = 1, 9 do
 	table.insert(keys, {
@@ -213,8 +225,5 @@ table.insert(keys, { key = "n", mods = "CTRL|SHIFT", action = act.ToggleFullScre
 table.insert(keys, { key = "r", mods = "CTRL|SHIFT", action = act.ReloadConfiguration })
 
 config.keys = keys
-
--- === ssh
-config.ssh_backend = "Ssh2"
 
 return config
